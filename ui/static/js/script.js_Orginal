@@ -1,0 +1,72 @@
+document.addEventListener("DOMContentLoaded", () => {
+    loadDevicesDropdown();
+    initializeChart();
+});
+
+let usageChart;
+
+function initializeChart() {
+    const ctx = document.getElementById('usageChart').getContext('2d');
+    usageChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Bewegungen pro Tag',
+                data: [],
+                borderColor: '#00a8ff',
+                backgroundColor: 'rgba(0, 168, 255, 0.2)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+function loadDevicesDropdown() {
+    fetch('/api/my_devices')
+        .then(response => response.json())
+        .then(data => {
+            const deviceDropdown = document.getElementById('deviceDropdown');
+            deviceDropdown.innerHTML = ''; // Clear existing options
+
+            if (data.devices && data.devices.length > 0) {
+                data.devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.mac_address;
+                    option.textContent = device.mac_address;
+                    deviceDropdown.appendChild(option);
+                });
+                loadSelectedDeviceData(); // Load data for the first device by default
+            } else {
+                const noDeviceOption = document.createElement('option');
+                noDeviceOption.value = '';
+                noDeviceOption.textContent = 'Keine registrierten Geräte gefunden';
+                deviceDropdown.appendChild(noDeviceOption);
+            }
+        })
+        .catch(error => console.error('Fehler beim Laden der Geräte:', error));
+}
+
+function loadSelectedDeviceData() {
+    const macAddress = document.getElementById('deviceDropdown').value;
+    if (!macAddress) return;
+
+    fetch(`/api/motion_chart_data?mac_address=${macAddress}`)
+        .then(response => response.json())
+        .then(data => {
+            usageChart.data.labels = data.labels;
+            usageChart.data.datasets[0].data = data.data;
+            usageChart.update();
+        })
+        .catch(error => console.error('Fehler beim Laden der Bewegungsdaten:', error));
+}
+

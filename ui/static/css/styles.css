@@ -1,0 +1,139 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    background-color: #f5f6fa;
+}
+
+.dashboard-container {
+    display: flex;
+    width: 100%;
+}
+
+.sidebar {
+    background-color: #2f3640;
+    color: #f5f6fa;
+    width: 250px;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 40px;
+}
+
+.nav .nav-item {
+    color: #dcdde1;
+    padding: 10px 0;
+    text-decoration: none;
+}
+
+.nav .nav-item.active {
+    color: #00a8ff;
+}
+
+.logout-btn {
+    color: #ff6b6b;
+    font-weight: bold;
+    margin-top: 20px;
+    text-decoration: none;
+}
+
+.logout-btn:hover {
+    color: #ff4757;
+}
+
+.main-content {
+    flex: 1;
+    padding: 20px;
+    background-color: #f5f6fa;
+}
+
+header {
+    margin-bottom: 20px;
+}
+
+.summary-cards {
+    display: flex;
+    gap: 20px;
+}
+
+.card {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 20px;
+    width: 200px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.card p {
+    font-size: 24px;
+    color: #00a8ff;
+    margin-bottom: 10px;
+}
+
+.card span {
+    color: #888;
+}
+
+.usage-chart {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+}
+
+.device-data {
+    margin-top: 30px;
+}
+
+.device-data select, .device-data button {
+    padding: 10px;
+    font-size: 16px;
+    margin: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+.device-data button {
+    background-color: #4CAF50;
+    color: white;
+    cursor: pointer;
+}
+
+.device-data button:hover {
+    background-color: #45a049;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #4CAF50;
+    color: white;
+}
+
+tr:hover {
+    background-color: #f1f1f1;
+}
+

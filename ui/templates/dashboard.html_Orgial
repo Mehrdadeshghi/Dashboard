@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">My Dashboard</div>
+            <nav class="nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-item active">Overview</a>
+                <a href="{{ url_for('meine_geraete') }}" class="nav-item">Meine Geräte</a>
+                <a href="#" class="nav-item">Settings</a>
+                <a href="{{ url_for('logout') }}" class="nav-item logout-btn">Abmelden</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header>
+                <h1>Overview</h1>
+                <div class="summary-cards">
+                    <div class="card">
+                        <p>78%</p>
+                        <span>Daily Usage</span>
+                        <h2>8h 41m</h2>
+                    </div>
+                    <div class="card">
+                        <p>67%</p>
+                        <span>Average Usage</span>
+                        <h2>4h 32m</h2>
+                    </div>
+                    <div class="card">
+                        <p>41%</p>
+                        <span>Temp.</span>
+                        <h2>18h 38m</h2>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dropdown zur Auswahl des ESP-Geräts -->
+            <section class="device-selection">
+                <label for="deviceDropdown">Wähle ein Gerät:</label>
+                <select id="deviceDropdown" onchange="loadSelectedDeviceData()">
+                    <option value="">Lade Geräte...</option>
+                </select>
+            </section>
+
+            <!-- Daily Usage Chart -->
+            <section class="usage-chart">
+                <h2>Daily Usage</h2>
+                <canvas id="usageChart"></canvas>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
+

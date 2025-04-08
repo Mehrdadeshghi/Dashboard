@@ -1,0 +1,434 @@
+from flask import Flask, redirect, url_for, session, render_template, jsonify, request
+from flask_session import Session
+from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
+import mysql.connector
+import os
+
+# Lade Umgebungsvariablen
+load_dotenv()
+
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+
+# Sitzung konfigurieren
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_PERMANENT"] = False
+Session(app)
+
+# Auth0-Konfiguration
+oauth = OAuth(app)
+auth0 = oauth.register(
+    'auth0',
+    client_id=os.getenv('AUTH0_CLIENT_ID'),
+    client_secret=os.getenv('AUTH0_CLIENT_SECRET'),
+    api_base_url=f'https://{os.getenv("AUTH0_DOMAIN")}',
+    access_token_url=f'https://{os.getenv("AUTH0_DOMAIN")}/oauth/token',
+    authorize_url=f'https://{os.getenv("AUTH0_DOMAIN")}/authorize',
+    jwks_uri=f'https://{os.getenv("AUTH0_DOMAIN")}/.well-known/jwks.json',
+    client_kwargs={
+        'scope': 'openid profile email',
+        'audience': os.getenv('AUTH0_AUDIENCE')
+    },
+)
+
+# Funktion zur Herstellung der Datenbankverbindung
+def get_db_connection():
+    return mysql.connector.connect(
+        host='localhost',
+        user='esp_user',
+        password='esp_password',
+        database='esp_data'
+    )
+
+@app.route('/')
+def home():
+    return render_template('home.html')
+
+@app.route('/login')
+def login():
+    return auth0.authorize_redirect(redirect_uri=os.getenv('AUTH0_CALLBACK_URL'))
+
+@app.route('/callback')
+def callback():
+    token = auth0.authorize_access_token()
+    user_info = auth0.get('userinfo').json()
+    session['user'] = user_info
+
+    auth0_sub = user_info.get('sub')
+    email = user_info.get('email')
+    first_name = user_info.get('given_name', 'Unbekannt')
+    last_name = user_info.get('family_name', 'Unbekannt')
+
+    # Verbindung zur Datenbank herstellen
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Benutzer in der Datenbank hinzufügen, falls noch nicht vorhanden
+    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    result = cursor.fetchone()
+    if not result:
+        cursor.execute(
+            "INSERT INTO users (auth0_sub, email, first_name, last_name) VALUES (%s, %s, %s, %s)",
+            (auth0_sub, email, first_name, last_name)
+        )
+        conn.commit()
+    cursor.close()
+    conn.close()
+
+    return redirect('/dashboard')
+
+@app.route('/dashboard')
+def dashboard():
+    user = session.get('user')
+    if not user:
+        return redirect('/login')
+
+    auth0_sub = user.get('sub')
+
+    # Verbindung zur Datenbank herstellen
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Benutzer-ID abrufen
+    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    user_result = cursor.fetchone()
+
+    if not user_result:
+        cursor.close()
+        conn.close()
+        return "Benutzer nicht gefunden", 404
+
+    user_id = user_result['id']
+
+    # Geräte des Benutzers zusammen mit last_seen abrufen
+    cursor.execute("""
+        SELECT ud.mac_address, ud.hostname, ei.last_seen
+        FROM user_devices ud
+        LEFT JOIN esp_info ei ON ud.mac_address = ei.mac_address
+        WHERE ud.user_id = %s
+    """, (user_id,))
+    devices = cursor.fetchall()
+
+    # Wenn keine Geräte gefunden wurden, wird eine leere Liste verwendet
+    if not devices:
+        devices = []
+
+    # Ausgewähltes Gerät bestimmen
+    selected_device_mac = request.args.get('device_mac')
+    if devices and selected_device_mac is None:
+        selected_device_mac = devices[0]['mac_address']  # Standardmäßig erstes Gerät auswählen
+
+    # Letzte Temperaturmessung, last_seen und wifi_strength für das ausgewählte Gerät abrufen
+    last_temperature = "Keine Daten"
+    selected_device_last_seen = None
+    selected_device_wifi_strength = None
+
+    if selected_device_mac:
+        # Letzte Temperatur abrufen
+        cursor.execute("""
+            SELECT temperature_celsius
+            FROM mailbox_temperature
+            WHERE device_mac = %s
+            ORDER BY date DESC, time DESC
+            LIMIT 1
+        """, (selected_device_mac,))
+        temp_result = cursor.fetchone()
+        if temp_result:
+            last_temperature = temp_result['temperature_celsius']
+
+        # Last seen und wifi_strength abrufen
+        cursor.execute("""
+            SELECT last_seen, wifi_strength
+            FROM esp_info
+            WHERE mac_address = %s
+        """, (selected_device_mac,))
+        device_info_result = cursor.fetchone()
+        if device_info_result:
+            selected_device_last_seen = device_info_result['last_seen']
+            selected_device_wifi_strength = device_info_result['wifi_strength']
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        'dashboard.html',
+        user=user,
+        devices=devices,
+        selected_device_mac=selected_device_mac,
+        last_temperature=last_temperature,
+        selected_device_last_seen=selected_device_last_seen,
+        selected_device_wifi_strength=selected_device_wifi_strength
+    )
+
+@app.route('/meine_geraete')
+def meine_geraete():
+    return render_template('meine_geraete.html')
+
+@app.route('/api/my_devices')
+def my_devices():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    auth0_sub = user.get('sub')
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    result = cursor.fetchone()
+
+    if not result:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': 'Benutzer nicht gefunden'}), 404
+
+    user_id = result['id']
+    cursor.execute("SELECT id, mac_address, hostname FROM user_devices WHERE user_id = %s", (user_id,))
+    devices = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return jsonify({'devices': devices})
+
+@app.route('/api/add_device', methods=['POST'])
+def add_device():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    mac_address = request.json.get('mac_address')
+    hostname = request.json.get('hostname')
+    auth0_sub = user.get('sub')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Überprüfe, ob die MAC-Adresse bereits registriert ist
+    cursor.execute("SELECT * FROM user_devices WHERE mac_address = %s", (mac_address,))
+    existing_device = cursor.fetchone()
+
+    if existing_device:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': 'Dieses Gerät ist bereits bei einem Konto registriert'}), 400
+
+    # Benutzer-ID anhand der Auth0-Sub-ID abrufen
+    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    result = cursor.fetchone()
+    if not result:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': 'Benutzer nicht gefunden'}), 404
+
+    user_id = result['id']
+
+    # Neues Gerät hinzufügen mit MAC-Adresse und Hostname
+    cursor.execute(
+        "INSERT INTO user_devices (user_id, mac_address, hostname) VALUES (%s, %s, %s)",
+        (user_id, mac_address, hostname)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/delete_device', methods=['POST'])
+def delete_device():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    device_id = request.json.get('device_id')
+    auth0_sub = user.get('sub')
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    result = cursor.fetchone()
+    if not result:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': 'Benutzer nicht gefunden'}), 404
+
+    user_id = result['id']
+
+    cursor.execute("DELETE FROM user_devices WHERE id = %s AND user_id = %s", (device_id, user_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({'success': True})
+
+# API-Endpunkt zum Abrufen der letzten Temperaturmessung
+@app.route('/api/get_temperature')
+def get_temperature():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    device_mac = request.args.get('device_mac')
+    if not device_mac:
+        return jsonify({'error': 'MAC-Adresse fehlt'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Letzte Temperaturmessung für das ausgewählte Gerät abrufen
+    cursor.execute("""
+        SELECT temperature_celsius
+        FROM mailbox_temperature
+        WHERE device_mac = %s
+        ORDER BY date DESC, time DESC
+        LIMIT 1
+    """, (device_mac,))
+
+    temp_result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    last_temperature = temp_result['temperature_celsius'] if temp_result else "Keine Daten"
+    return jsonify({'last_temperature': last_temperature})
+
+# API-Endpunkt für Bewegungsdaten-Chart basierend auf der ausgewählten MAC-Adresse
+@app.route('/api/motion_chart_data')
+def motion_chart_data():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    mac_address = request.args.get('mac_address')
+    days = request.args.get('days', 30)  # Standardmäßig 30 Tage, falls nicht angegeben
+
+    if not mac_address:
+        return jsonify({'error': 'MAC-Adresse fehlt'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Bewegungsdaten für den ausgewählten Zeitraum abrufen
+    cursor.execute("""
+        SELECT DATE(event_date) AS event_date, COUNT(*) AS movement_count
+        FROM motion_events
+        WHERE mac_address = %s AND event_date >= CURDATE() - INTERVAL %s DAY
+        GROUP BY DATE(event_date)
+        ORDER BY event_date
+    """, (mac_address, int(days)))
+
+    motion_data = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    # Daten für das Chart vorbereiten
+    labels = [row['event_date'].strftime('%Y-%m-%d') for row in motion_data]
+    values = [row['movement_count'] for row in motion_data]
+
+    return jsonify({'labels': labels, 'values': values})
+
+# API-Endpunkt zum Abrufen von last_seen
+@app.route('/api/get_last_seen')
+def get_last_seen():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    device_mac = request.args.get('device_mac')
+    if not device_mac:
+        return jsonify({'error': 'MAC-Adresse fehlt'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Überprüfen, ob der Benutzer Zugriff auf das Gerät hat
+    auth0_sub = user.get('sub')
+    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    user_result = cursor.fetchone()
+
+    if not user_result:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': 'Benutzer nicht gefunden'}), 404
+
+    user_id = user_result['id']
+    cursor.execute("SELECT * FROM user_devices WHERE user_id = %s AND mac_address = %s", (user_id, device_mac))
+    device_result = cursor.fetchone()
+
+    if not device_result:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': 'Keine Berechtigung für dieses Gerät'}), 403
+
+    # Last seen für das ausgewählte Gerät abrufen
+    cursor.execute("""
+        SELECT last_seen
+        FROM esp_info
+        WHERE mac_address = %s
+    """, (device_mac,))
+    last_seen_result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if last_seen_result and last_seen_result['last_seen']:
+        last_seen_str = last_seen_result['last_seen'].strftime('%d.%m.%Y %H:%M:%S')
+    else:
+        last_seen_str = "Keine Daten"
+
+    return jsonify({'last_seen': last_seen_str})
+
+# API-Endpunkt zum Abrufen der Signalstärke
+@app.route('/api/get_wifi_strength')
+def get_wifi_strength():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    device_mac = request.args.get('device_mac')
+    if not device_mac:
+        return jsonify({'error': 'MAC-Adresse fehlt'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Überprüfen, ob der Benutzer Zugriff auf das Gerät hat
+    auth0_sub = user.get('sub')
+    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    user_result = cursor.fetchone()
+
+    if not user_result:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': 'Benutzer nicht gefunden'}), 404
+
+    user_id = user_result['id']
+    cursor.execute("SELECT * FROM user_devices WHERE user_id = %s AND mac_address = %s", (user_id, device_mac))
+    device_result = cursor.fetchone()
+
+    if not device_result:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': 'Keine Berechtigung für dieses Gerät'}), 403
+
+    # Signalstärke für das ausgewählte Gerät abrufen
+    cursor.execute("""
+        SELECT wifi_strength
+        FROM esp_info
+        WHERE mac_address = %s
+    """, (device_mac,))
+    wifi_strength_result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if wifi_strength_result and wifi_strength_result['wifi_strength'] is not None:
+        wifi_strength = wifi_strength_result['wifi_strength']
+    else:
+        wifi_strength = None
+
+    return jsonify({'wifi_strength': wifi_strength})
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(f'https://{os.getenv("AUTH0_DOMAIN")}/v2/logout?client_id={os.getenv("AUTH0_CLIENT_ID")}&returnTo={url_for("home", _external=True)}')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5100)
+

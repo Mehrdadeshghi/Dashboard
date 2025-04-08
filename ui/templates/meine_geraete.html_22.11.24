@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meine Geräte</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f5fa;
+            color: #333;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .device-container {
+            max-width: 600px;
+            width: 100%;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .device-header h1 {
+            font-size: 24px;
+            color: #2c3e50;
+        }
+
+        .device-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .device-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            background-color: #f9fafb;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transition: box-shadow 0.3s;
+        }
+
+        .device-list li:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .device-list button {
+            background-color: #e74c3c;
+            color: #ffffff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .device-list button:hover {
+            background-color: #c0392b;
+        }
+
+        .add-device-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .add-device-form input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background-color: #f9fafb;
+        }
+
+        .add-device-form button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .add-device-form button:hover {
+            background-color: #45a049;
+        }
+
+        /* Farbthema-Anpassungen für Konsistenz */
+        .device-container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .add-device-form button {
+            background-color: #6c63ff;
+            color: #ffffff;
+        }
+
+        .add-device-form button:hover {
+            background-color: #574b90;
+        }
+    </style>
+</head>
+<body>
+    <div class="device-container">
+        <div class="device-header">
+            <h1>Meine Geräte</h1>
+        </div>
+        <ul id="deviceList" class="device-list">
+            <li>Geräte werden geladen...</li>
+        </ul>
+
+        <!-- Formular zum Hinzufügen eines neuen Geräts mit Hostnamen -->
+        <form id="addDeviceForm" class="add-device-form" onsubmit="addDevice(event)">
+            <input type="text" id="macAddressInput" placeholder="MAC-Adresse eingeben" required>
+            <input type="text" id="hostnameInput" placeholder="Hostname eingeben" required>
+            <button type="submit">Hinzufügen</button>
+        </form>
+    </div>
+
+    <script>
+        function loadDevices() {
+            fetch('/api/my_devices')
+                .then(response => response.json())
+                .then(data => {
+                    const deviceList = document.getElementById('deviceList');
+                    deviceList.innerHTML = ''; // Clear existing list
+
+                    if (data.devices && data.devices.length > 0) {
+                        data.devices.forEach(device => {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = `MAC: ${device.mac_address}, Hostname: ${device.hostname || 'Nicht gesetzt'}`;
+                            const deleteButton = document.createElement('button');
+                            deleteButton.textContent = "Löschen";
+                            deleteButton.onclick = () => deleteDevice(device.id);
+                            listItem.appendChild(deleteButton);
+                            deviceList.appendChild(listItem);
+                        });
+                    } else {
+                        deviceList.innerHTML = '<li>Keine registrierten Geräte gefunden</li>';
+                    }
+                })
+                .catch(error => console.error('Fehler beim Laden der Geräte:', error));
+        }
+
+        function addDevice(event) {
+            event.preventDefault();
+            const macAddress = document.getElementById('macAddressInput').value;
+            const hostname = document.getElementById('hostnameInput').value;
+
+            fetch('/api/add_device', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ mac_address: macAddress, hostname: hostname })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('macAddressInput').value = ''; // Clear input
+                    document.getElementById('hostnameInput').value = ''; // Clear input
+                    loadDevices(); // Refresh list after addition
+                } else {
+                    alert(data.error || 'Fehler beim Hinzufügen des Geräts');
+                }
+            })
+            .catch(error => console.error('Fehler beim Hinzufügen des Geräts:', error));
+        }
+
+        function deleteDevice(device_id) {
+            fetch('/api/delete_device', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ device_id: device_id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadDevices(); // Refresh list after deletion
+                } else {
+                    alert('Fehler beim Löschen des Geräts');
+                }
+            })
+            .catch(error => console.error('Fehler beim Löschen des Geräts:', error));
+        }
+
+        document.addEventListener("DOMContentLoaded", loadDevices);
+    </script>
+</body>
+</html>
+

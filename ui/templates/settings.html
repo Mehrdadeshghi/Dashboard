@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Einstellungen</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Styles -->
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f5fa;
+            color: #333;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+
+        .dashboard-container {
+            display: flex;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(to bottom, #97A7FD, #B863EF);
+            color: #ecf0f1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            transition: width 0.3s ease;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+        .sidebar .toggle-btn {
+            background-color: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 24px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            align-self: flex-start;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed .toggle-btn {
+            transform: rotate(180deg);
+        }
+
+        .sidebar .logo {
+            font-size: 26px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 40px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .logo {
+            opacity: 0;
+        }
+
+        .nav {
+            width: 100%;
+            list-style: none;
+            padding: 0;
+        }
+
+        .nav-item {
+            width: 100%;
+            padding: 15px 20px;
+            color: #dfe6e9;
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .nav-item i {
+            font-size: 28px;
+            transition: font-size 0.3s ease;
+        }
+
+        .nav-item span {
+            font-size: 20px;
+        }
+
+        .sidebar.collapsed .nav .nav-item i {
+            font-size: 48px;
+        }
+
+        .nav-item.active,
+        .nav-item:hover {
+            color: #ecf0f1;
+            background-color: rgba(87, 75, 144, 0.7);
+            border-radius: 6px;
+        }
+
+        .sidebar.collapsed .nav-item {
+            justify-content: center;
+            padding: 15px 10px;
+        }
+
+        .sidebar.collapsed .nav-item span {
+            display: none;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3436;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            font-weight: 500;
+            color: #34495e;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: 1px solid #bdc3c7;
+            outline: none;
+            background-color: #ffffff;
+            color: #34495e;
+            box-sizing: border-box;
+        }
+
+        .button-group {
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #6c63ff;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #574b90;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <button class="toggle-btn" id="toggleSidebar">☰</button>
+            <div class="logo">Smartbriefkasten</div>
+            <nav class="nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Übersicht</span>
+                </a>
+                <a href="{{ url_for('meine_geraete') }}" class="nav-item">
+                    <i class="fas fa-box"></i>
+                    <span>Meine Geräte</span>
+                </a>
+                <a href="{{ url_for('einstellungen') }}" class="nav-item active">
+                    <i class="fas fa-cog"></i>
+                    <span>Einstellungen</span>
+                </a>
+                <a href="{{ url_for('logout') }}" class="nav-item logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Abmelden</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header>
+                <h1>Einstellungen</h1>
+            </header>
+            <form id="userDataForm">
+                <div class="form-group">
+                    <label for="first_name">Vorname:</label>
+                    <input type="text" id="first_name" name="first_name" placeholder="Vorname eingeben"
+                           value="{{ user_data.first_name if user_data else '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Nachname:</label>
+                    <input type="text" id="last_name" name="last_name" placeholder="Nachname eingeben"
+                           value="{{ user_data.last_name if user_data else '' }}">
+                </div>
+                <div class="button-group">
+                    <button type="button" id="saveButton">Speichern</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('toggleSidebar');
+
+            toggleBtn.addEventListener('click', function() {
+                sidebar.classList.toggle('collapsed');
+            });
+
+            document.getElementById('saveButton').addEventListener('click', function() {
+                const firstName = document.getElementById('first_name').value.trim();
+                const lastName = document.getElementById('last_name').value.trim();
+
+                if (!firstName || !lastName) {
+                    alert('Vorname und Nachname dürfen nicht leer sein.');
+                    return;
+                }
+
+                fetch('/api/save_user_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ first_name: firstName, last_name: lastName })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                    } else {
+                        alert('Fehler: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Fehler beim Speichern der Daten:', error);
+                    alert('Ein unerwarteter Fehler ist aufgetreten.');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

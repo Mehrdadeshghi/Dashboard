@@ -1,0 +1,82 @@
+/* Basis-Stile */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #4caf50, #81c784); /* Frischer grüner Farbverlauf */
+}
+
+.home-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 600px;
+}
+
+.welcome-box {
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2); /* Leichter Schatten für Abhebung */
+    text-align: center;
+}
+
+.welcome-box h1 {
+    color: #333;
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.welcome-box p {
+    color: #555;
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+.login-button {
+    display: inline-block;
+    padding: 12px 25px;
+    font-size: 18px;
+    color: #ffffff;
+    background-color: #4caf50; /* Frisches Grün für den Button */
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease; /* Weicher Hover-Effekt */
+}
+
+.login-button:hover {
+    background-color: #388e3c; /* Dunklerer Grünton beim Hover */
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 600px) {
+    .welcome-box {
+        padding: 30px;
+        width: 90%;
+    }
+
+    .welcome-box h1 {
+        font-size: 28px;
+    }
+
+    .welcome-box p {
+        font-size: 16px;
+    }
+
+    .login-button {
+        padding: 10px 20px;
+        font-size: 16px;
+    }
+}
+

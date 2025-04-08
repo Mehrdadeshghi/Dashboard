@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smartbriefkasten Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Ihr vorhandenes CSS */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f5fa;
+            color: #333;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* ... Rest Ihres CSS ... */
+        .dashboard-container {
+            display: flex;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 260px;
+            background-color: #6c63ff;
+            color: #ecf0f1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar .logo {
+            font-size: 26px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 40px;
+        }
+
+        .sidebar .nav {
+            width: 100%;
+        }
+
+        .sidebar .nav-item {
+            display: block;
+            padding: 12px 20px;
+            color: #dfe6e9;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .sidebar .nav-item.active, .sidebar .nav-item:hover {
+            color: #ecf0f1;
+            background-color: #574b90;
+            border-radius: 6px;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3436;
+            margin-bottom: 20px;
+        }
+
+        .summary-cards {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            text-align: center;
+            transition: box-shadow 0.3s;
+        }
+
+        .card--pink {
+            background: linear-gradient(135deg, #ff6b81, #ff9a8b);
+            color: #fff;
+        }
+
+        .card--blue {
+            background: linear-gradient(135deg, #6a89cc, #82ccdd);
+            color: #fff;
+        }
+
+        .card--green {
+            background: linear-gradient(135deg, #38ada9, #78e08f);
+            color: #fff;
+        }
+
+        .card h3 {
+            font-size: 18px;
+            color: #ecf0f1;
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            font-size: 26px;
+            font-weight: 500;
+        }
+
+        .device-selection {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .device-selection label {
+            font-weight: 500;
+            color: #34495e;
+        }
+
+        select {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: 1px solid #bdc3c7;
+            outline: none;
+            background-color: #ffffff;
+            color: #34495e;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            border-color: #6c63ff;
+        }
+
+        .usage-chart {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .usage-chart h2 {
+            font-size: 20px;
+            font-weight: 500;
+            color: #34495e;
+            margin-bottom: 15px;
+        }
+
+        .no-devices-message {
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 20px;
+        }
+
+        .add-device-button {
+            background-color: #6c63ff;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.3s;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .add-device-button:hover {
+            background-color: #574b90;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="logo">Smartbriefkasten</div>
+            <nav class="nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-item active">Übersicht</a>
+                <a href="{{ url_for('meine_geraete') }}" class="nav-item">Meine Geräte</a>
+                <a href="#" class="nav-item">Einstellungen</a>
+                <a href="{{ url_for('logout') }}" class="nav-item logout-btn">Abmelden</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header>
+                <h1>Übersicht</h1>
+            </header>
+
+            {% if devices and devices|length > 0 %}
+                <!-- Dashboard-Inhalt, wenn Geräte vorhanden sind -->
+                <div class="summary-cards">
+                    <div class="card card--pink">
+                        <h3>Letzte Temperatur</h3>
+                        <p id="temperatureDisplay">
+                            {% if last_temperature != "Keine Daten" %}
+                                {{ "%.2f"|format(last_temperature) }}°C
+                            {% else %}
+                                {{ last_temperature }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="card card--blue">
+                        <h3>Letzter Kontakt</h3>
+                        <p id="lastSeenDisplay">
+                            {% if selected_device_last_seen %}
+                                {{ selected_device_last_seen.strftime('%d.%m.%Y %H:%M:%S') }}
+                            {% else %}
+                                Keine Daten
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="card card--green">
+                        <h3>Signalstärke</h3>
+                        <p id="wifiStrengthDisplay">
+                            {% if selected_device_wifi_strength is not none %}
+                                {{ selected_device_wifi_strength }} dBm
+                            {% else %}
+                                Keine Daten
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <section class="device-selection">
+                    <label for="deviceDropdown">Wähle ein Gerät:</label>
+                    <select id="deviceDropdown">
+                        {% for device in devices %}
+                            <option value="{{ device['mac_address'] }}" {% if device['mac_address'] == selected_device_mac %}selected{% endif %}>
+                                {{ device['hostname'] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="timeRange">Zeitraum:</label>
+                    <select id="timeRange">
+                        <option value="7">1 Woche</option>
+                        <option value="30" selected>1 Monat</option>
+                        <option value="90">3 Monate</option>
+                    </select>
+                </section>
+
+                <section class="usage-chart">
+                    <h2>Tägliche Nutzung</h2>
+                    <canvas id="usageChart"></canvas>
+                </section>
+            {% else %}
+                <!-- Nachricht und Schaltfläche, wenn keine Geräte vorhanden sind -->
+                <div class="no-devices-message">
+                    <p>Sie haben derzeit keine registrierten Geräte.</p>
+                    <a href="{{ url_for('meine_geraete') }}" class="add-device-button">Gerät hinzufügen</a>
+                </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const deviceDropdown = document.getElementById('deviceDropdown');
+        const temperatureDisplay = document.getElementById('temperatureDisplay');
+        const lastSeenDisplay = document.getElementById('lastSeenDisplay');
+        const wifiStrengthDisplay = document.getElementById('wifiStrengthDisplay');
+        const timeRange = document.getElementById('timeRange');
+
+        if (deviceDropdown) {
+            function loadTemperatureData(macAddress) {
+                fetch(`/api/get_temperature?device_mac=${encodeURIComponent(macAddress)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.last_temperature !== "Keine Daten") {
+                            temperatureDisplay.textContent = `${parseFloat(data.last_temperature).toFixed(2)}°C`;
+                        } else {
+                            temperatureDisplay.textContent = data.last_temperature;
+                        }
+                    })
+                    .catch(error => console.error("Fehler beim Laden der Temperaturdaten:", error));
+            }
+
+            function loadLastSeenData(macAddress) {
+                fetch(`/api/get_last_seen?device_mac=${encodeURIComponent(macAddress)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        lastSeenDisplay.textContent = data.last_seen;
+                    })
+                    .catch(error => console.error("Fehler beim Laden der Last Seen Daten:", error));
+            }
+
+            function loadWifiStrengthData(macAddress) {
+                fetch(`/api/get_wifi_strength?device_mac=${encodeURIComponent(macAddress)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.wifi_strength !== null) {
+                            wifiStrengthDisplay.textContent = `${data.wifi_strength} dBm`;
+                        } else {
+                            wifiStrengthDisplay.textContent = 'Keine Daten';
+                        }
+                    })
+                    .catch(error => console.error("Fehler beim Laden der Signalstärke:", error));
+            }
+
+            const usageChart = new Chart(document.getElementById('usageChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Anzahl Bewegungen',
+                        data: [],
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(255, 255, 255, 1)',
+                        pointBorderColor: 'rgba(75, 192, 192, 1)',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: '#333',
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#333',
+                            titleColor: '#fff',
+                            bodyColor: '#fff'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Datum',
+                                color: '#333'
+                            },
+                            grid: {
+                                color: 'rgba(200, 200, 200, 0.2)',
+                            },
+                            ticks: {
+                                color: '#333'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Bewegungen',
+                                color: '#333'
+                            },
+                            grid: {
+                                color: 'rgba(200, 200, 200, 0.2)',
+                            },
+                            ticks: {
+                                color: '#333'
+                            }
+                        }
+                    }
+                }
+            });
+
+            function loadMotionChartData(macAddress, days) {
+                fetch(`/api/motion_chart_data?mac_address=${encodeURIComponent(macAddress)}&days=${encodeURIComponent(days)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        usageChart.data.labels = data.labels;
+                        usageChart.data.datasets[0].data = data.values;
+                        usageChart.update();
+                    })
+                    .catch(error => console.error("Fehler beim Laden der Bewegungsdaten:", error));
+            }
+
+            // Initiale Daten laden
+            const selectedDeviceMac = deviceDropdown.value;
+            loadTemperatureData(selectedDeviceMac);
+            loadLastSeenData(selectedDeviceMac);
+            loadWifiStrengthData(selectedDeviceMac);
+            loadMotionChartData(selectedDeviceMac, timeRange.value);
+
+            deviceDropdown.addEventListener('change', function() {
+                const selectedDeviceMac = deviceDropdown.value;
+                loadTemperatureData(selectedDeviceMac);
+                loadLastSeenData(selectedDeviceMac);
+                loadWifiStrengthData(selectedDeviceMac);
+                loadMotionChartData(selectedDeviceMac, timeRange.value);
+            });
+
+            timeRange.addEventListener('change', function() {
+                loadMotionChartData(deviceDropdown.value, timeRange.value);
+            });
+        }
+    });
+    </script>
+</body>
+</html>
+
