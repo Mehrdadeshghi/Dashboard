@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex flex-col items-center justify-center mt-20">
+    <h2 class="text-3xl font-bold mb-6">Willkommen beim SmartBriefkasten</h2>
+    <p class="text-gray-600 mb-4">Bitte logge dich ein, um deine Geräte zu verwalten.</p>
+    <a href="/login" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-md transition">
+        🔐 Mit Auth0 einloggen
+    </a>
+</div>
+{% endblock %}
