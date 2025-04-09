@@ -26,7 +26,7 @@ def get_db_connection():
         host='localhost',
         user='esp_user',
         password='esp_password',
-        database='esp_data'
+        database='ESPv2'
     )
 
 @app.route("/")
