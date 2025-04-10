@@ -56,7 +56,7 @@ def callback():
     user_info = auth0.get('userinfo').json()
     session['user'] = user_info
 
-    auth0_sub = user_info.get('sub')
+    auth0_id = user_info.get('sub')
     email = user_info.get('email')
     first_name = user_info.get('given_name', 'Unbekannt')
     last_name = user_info.get('family_name', 'Unbekannt')
@@ -66,12 +66,12 @@ def callback():
     cursor = conn.cursor(dictionary=True)
 
     # Benutzer in der Datenbank hinzufügen, falls noch nicht vorhanden
-    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    cursor.execute("SELECT id FROM users WHERE auth0_id = %s", (auth0_id,))
     result = cursor.fetchone()
     if not result:
         cursor.execute(
-            "INSERT INTO users (auth0_sub, email, first_name, last_name) VALUES (%s, %s, %s, %s)",
-            (auth0_sub, email, first_name, last_name)
+            "INSERT INTO users (auth0_id, email, first_name, last_name) VALUES (%s, %s, %s, %s)",
+            (auth0_id, email, first_name, last_name)
         )
         conn.commit()
     cursor.close()
@@ -86,14 +86,14 @@ def dashboard():
     if not user:
         return redirect('/login')  # Wenn nicht eingeloggt, weiterleiten zur Login-Seite
 
-    auth0_sub = user.get('sub')  # Auth0-Sub-ID des Benutzers
+    auth0_id = user.get('sub')  # Auth0-Sub-ID des Benutzers
 
     # Verbindung zur Datenbank herstellen
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
     # Benutzerdaten (Vorname, Nachname) aus der Datenbank abrufen
-    cursor.execute("SELECT first_name, last_name FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    cursor.execute("SELECT first_name, last_name FROM users WHERE auth0_id = %s", (auth0_id,))
     user_data = cursor.fetchone()
     first_name = user_data['first_name'] if user_data and user_data['first_name'] else 'Benutzer'
 
@@ -102,8 +102,8 @@ def dashboard():
         SELECT ud.mac_address, ud.hostname, ei.last_seen
         FROM user_devices ud
         LEFT JOIN esp_info ei ON ud.mac_address = ei.mac_address
-        WHERE ud.user_id = (SELECT id FROM users WHERE auth0_sub = %s)
-    """, (auth0_sub,))
+        WHERE ud.user_id = (SELECT id FROM users WHERE auth0_id = %s)
+    """, (auth0_id,))
     devices = cursor.fetchall()
 
     # Wenn keine Geräte gefunden wurden, wird eine leere Liste verwendet
@@ -164,13 +164,13 @@ def einstellungen():
     if not user:
         return redirect('/login')
 
-    auth0_sub = user.get('sub')
+    auth0_id = user.get('sub')
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
     # Abrufen der Benutzerdaten aus der Datenbank
-    cursor.execute("SELECT first_name, last_name FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    cursor.execute("SELECT first_name, last_name FROM users WHERE auth0_id = %s", (auth0_id,))
     user_data = cursor.fetchone()
 
     cursor.close()
@@ -192,15 +192,15 @@ def save_user_data():
     if not first_name or not last_name:
         return jsonify({'error': 'Vorname und Nachname dürfen nicht leer sein'}), 400
 
-    auth0_sub = user.get('sub')
+    auth0_id = user.get('sub')
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
     # Aktualisieren der Benutzerdaten in der Datenbank
     cursor.execute(
-        "UPDATE users SET first_name = %s, last_name = %s WHERE auth0_sub = %s",
-        (first_name, last_name, auth0_sub)
+        "UPDATE users SET first_name = %s, last_name = %s WHERE auth0_id = %s",
+        (first_name, last_name, auth0_id)
     )
     conn.commit()
 
@@ -219,10 +219,10 @@ def my_devices():
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    auth0_sub = user.get('sub')
+    auth0_id = user.get('sub')
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    cursor.execute("SELECT id FROM users WHERE auth0_id = %s", (auth0_id,))
     result = cursor.fetchone()
 
     if not result:
@@ -246,7 +246,7 @@ def add_device():
 
     mac_address = request.json.get('mac_address')
     hostname = request.json.get('hostname')
-    auth0_sub = user.get('sub')
+    auth0_id = user.get('sub')
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -261,7 +261,7 @@ def add_device():
         return jsonify({'error': 'Dieses Gerät ist bereits bei einem Konto registriert'}), 400
 
     # Benutzer-ID anhand der Auth0-Sub-ID abrufen
-    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    cursor.execute("SELECT id FROM users WHERE auth0_id = %s", (auth0_id,))
     result = cursor.fetchone()
     if not result:
         cursor.close()
@@ -287,11 +287,11 @@ def delete_device():
         return jsonify({'error': 'Unauthorized'}), 401
 
     device_id = request.json.get('device_id')
-    auth0_sub = user.get('sub')
+    auth0_id = user.get('sub')
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    cursor.execute("SELECT id FROM users WHERE auth0_id = %s", (auth0_id,))
     result = cursor.fetchone()
     if not result:
         cursor.close()
@@ -524,10 +524,10 @@ def recent_logs():
         return jsonify({'error': 'Unauthorized'}), 401
 
     # user_id aus DB ermitteln
-    auth0_sub = user.get('sub')
+    auth0_id = user.get('sub')
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    cursor.execute("SELECT id FROM users WHERE auth0_id = %s", (auth0_id,))
     user_in_db = cursor.fetchone()
 
     if not user_in_db:
@@ -616,10 +616,10 @@ def classify_event():
         return jsonify({'error': 'Ungültige Klassifikation!'}), 400
 
     # user_id aus DB ermitteln, statt clientseitig
-    auth0_sub = user.get('sub')
+    auth0_id = user.get('sub')
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,))
+    cursor.execute("SELECT id FROM users WHERE auth0_id = %s", (auth0_id,))
     user_in_db = cursor.fetchone()
     if not user_in_db:
         cursor.close()
