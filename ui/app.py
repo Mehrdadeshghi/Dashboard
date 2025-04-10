@@ -308,30 +308,30 @@ def delete_device():
     return jsonify({'success': True})
 
 # API-Endpunkt zum Abrufen der letzten Temperaturmessung
-@app.route('/api/get_temperature')
-def get_temperature():
-    device_mac = request.args.get('device_mac')
-    if not device_mac:
-        return jsonify({'error': 'MAC-Adresse fehlt'}), 400
+#@app.route('/api/get_temperature')
+#def get_temperature():
+#    device_mac = request.args.get('device_mac')
+#    if not device_mac:
+#        return jsonify({'error': 'MAC-Adresse fehlt'}), 
 
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+#    conn = get_db_connection()
+#    cursor = conn.cursor(dictionary=True)
 
-    # Letzte Temperaturmessung für das ausgewählte Gerät abrufen
-    cursor.execute("""
-        SELECT temperature_celsius
-        FROM mailbox_temperature
-        WHERE device_mac = %s
-        ORDER BY date DESC, time DESC
-        LIMIT 1
-    """, (device_mac,))
+#    # Letzte Temperaturmessung für das ausgewählte Gerät abrufen
+#    cursor.execute("""
+#        SELECT temperature_celsius
+#        FROM mailbox_temperature
+#        WHERE device_mac = %s
+#        ORDER BY date DESC, time DESC
+#        LIMIT 1
+#    """, (device_mac,))
 
-    temp_result = cursor.fetchone()
-    cursor.close()
-    conn.close()
+#    temp_result = cursor.fetchone()
+#    cursor.close()
+#    conn.close()
 
-    last_temperature = temp_result['temperature_celsius'] if temp_result else "Keine Daten"
-    return jsonify({'last_temperature': last_temperature})
+#    last_temperature = temp_result['temperature_celsius'] if temp_result else "Keine Daten"
+#    return jsonify({'last_temperature': last_temperature})
 
 # API-Endpunkt zum Abrufen des Gerätestatus (Online/Offline je nach last_seen)
 @app.route('/api/get_last_seen')
